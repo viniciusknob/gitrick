@@ -1,0 +1,153 @@
+#!/bin/bash
+# Vinicius Knob
+
+
+USAGE=$(cat << EOF
+Usage: ${0##*/} [OPTIONS...]
+
+Extension for git branch.
+
+Available options are
+    -c, --create         create a new non-track branch
+    --check              check some stuffs
+    -h, --help           show help
+    -n, --name           show the current branch name
+    --x-has-y            check if branch x contains y
+    -o, --obliterate     delete branch from local and remote
+    --merged             list sorted and merged branches with more info
+EOF
+)
+
+
+die() {
+    printf '%s\n' "$1" >&2
+    exit 1
+}
+
+
+option=0
+branch_name=0
+base_branch=0
+branch_x=0
+branch_y=1
+target_branch=0
+
+
+while :; do
+    case $1 in
+        -h|-\?|--help)
+            echo "$USAGE"
+            exit
+            ;;
+        -c|--create)
+            option="create"
+            if [ "$2" ]; then
+                branch_name="$2"
+            else
+                die 'ERROR: "--create" requires a non-empty option argument'
+            fi
+            if [ "$3" ]; then
+                base_branch="$3"
+            else
+                base_branch="$(git _branch --name)"
+            fi
+            shift
+            ;;
+        --check)
+            option="check"
+            exit
+            ;;
+        -n|--name)
+            option="name"
+            shift
+            ;;
+        --merged)
+            option="merged"
+            shift
+            ;;
+        --x-has-y)
+            option="x-has-y"
+            if [[ "$2" && "$3" ]]; then
+                branch_x="$2"
+                branch_y="$3"
+            else
+                die 'ERROR: "--x-has-y" requires a non-empty option argument'
+            fi
+            shift
+            ;;
+        -o|--obliterate)
+            if [ "$2" ]; then
+                target_branch="$2"
+            else
+                die 'ERROR: "--obliterate" requires a non-empty option argument'
+            fi
+            option="obliterate"
+            shift
+            ;;
+        --)              # End of all options.
+            shift
+            break
+            ;;
+        -?*)
+            printf 'WARN: unknown option (ignored): %s\n' "$1" >&2
+            ;;
+        *)               # Default case: No more options, so break out of the loop.
+            break
+    esac
+    shift
+done
+
+
+if [ "$option" == "create" ]
+then
+    git checkout -b "$branch_name" --no-track "$base_branch"
+fi
+
+
+if [ "$option" == "name" ]
+then
+    git rev-parse --abbrev-ref HEAD
+fi
+
+
+# https://railsware.com/blog/git-housekeeping-tutorial-clean-up-outdated-branches-in-local-and-remote-repositories/
+if [ "$option" == "merged" ]
+then
+    for branch in `git branch -r --merged | grep -v HEAD`;
+    do
+        # pretty doesn't work with sort, the formatting is lost
+        #git log --pretty='%C(yellow)%ci%Creset %Cblue%cr%Creset %Cgreen%an%Creset%Cred%d%Creset' -1 $branch;
+        find="origin/"
+        echo -e `git log --pretty="%ci (%cr) %h %an" -1 $branch | cut -d' ' -f -1,4-` "(${branch/$find/})";
+    done | \
+    sort -r
+fi
+
+
+if [ "$option" == "x-has-y" ]
+then
+    git branch --all --contains "$branch_y" | grep -q "$branch_x"
+fi
+
+
+if [ "$option" == "check" ]
+then
+    git log --pretty='%s' --first-parent --merges --reverse "@{u}" | \
+        cut -d' ' -f 3 | \
+        tr -d "'" | \
+        awk '!x[$0]++'        # https://stackoverflow.com/a/11532197
+fi
+
+
+if [ "$option" == "obliterate" ]
+then
+    if git branch -r | grep "$target_branch" >/dev/null
+    then
+        git push origin --delete "$target_branch"
+    fi
+
+    if git branch | grep "$target_branch" >/dev/null
+    then
+        git branch --delete --force "$target_branch"
+    fi
+fi

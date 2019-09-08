@@ -1,0 +1,56 @@
+#!/bin/bash
+# Vinicius Knob
+
+
+USAGE=$(cat << EOF
+Usage: ${0##*/} [OPTIONS...]
+
+Extension for git merge.
+
+Available options are
+    -h, --help           show help
+    -l, --list           list merges of the range
+EOF
+)
+
+
+die() {
+    printf '%s\n' "$1" >&2
+    exit 1
+}
+
+
+range="--all"
+
+
+while :; do
+    case $1 in
+        -h|-\?|--help)
+            echo "$USAGE"
+            exit
+            ;;
+        -l|--list)
+            if [ "$2" ]; then
+                range="$2"
+            fi
+            option="list"
+            shift
+            ;;
+        --)              # End of all options.
+            shift
+            break
+            ;;
+        -?*)
+            printf 'WARN: unknown option (ignored): %s\n' "$1" >&2
+            ;;
+        *)               # Default case: No more options, so break out of the loop.
+            break
+    esac
+    shift
+done
+
+
+if [ "$option" == "list" ]
+then
+    git log --oneline --merges "$range"
+fi

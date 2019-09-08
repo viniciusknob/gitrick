@@ -1,0 +1,106 @@
+#!/bin/bash
+# Vinicius Knob
+
+
+USAGE=$(cat << EOF
+Usage: ${0##*/} [OPTIONS...]
+
+Extension for git tag.
+
+Available options are
+    -h, --help           shows help
+    -o, --obliterate     deletes tag from local and remote
+    -p, --prune          removes all local tags and fetch the actives
+    -r, --replace        replaces the hash of a local and remote tag
+EOF
+)
+
+
+die() {
+    printf '%s\n' "$1" >&2
+    exit 1
+}
+
+
+tag_name=0
+commit=0
+
+
+while :; do
+    case $1 in
+        -h|-\?|--help)
+            echo "$USAGE"
+            exit
+            ;;
+        -o|--obliterate)
+            if [ "$2" ]; then
+                tag_name="$2"
+            else
+                die 'ERROR: "--obliterate" requires a non-empty option argument'
+            fi
+            option="obliterate"
+            shift
+            ;;
+        -p|--prune)
+            option="prune"
+            shift
+            ;;
+        -r|--replace)
+            if [ "$2" ]; then
+                tag_name="$2"
+            else
+                die 'ERROR: "--replace" requires a non-empty option argument'
+            fi
+            if [ "$3" ]; then
+                commit="$3"
+            else
+                commit="HEAD"
+            fi
+            option="replace"
+            shift
+            ;;
+        --)              # End of all options.
+            shift
+            break
+            ;;
+        -?*)
+            printf 'WARN: unknown option (ignored): %s\n' "$1" >&2
+            ;;
+        *)               # Default case: No more options, so break out of the loop.
+            break
+    esac
+    shift
+done
+
+
+# https://git-scm.com/book/en/v2/Git-Basics-Tagging
+if [ "$option" == "obliterate" ]
+then
+    printf '\nRemoving remote...\n'
+    git push origin --delete "$tag_name"
+
+    printf '\nRemoving local...\n'
+    git tag --delete "$tag_name"
+fi
+
+
+# https://stackoverflow.com/questions/1841341/remove-local-git-tags-that-are-no-longer-on-the-remote-repository
+if [ "$option" == "prune" ]
+then
+    printf '\nRemoving local tags...\n'
+    git tag --list | xargs git tag --delete
+
+    printf '\nFetching active tags...\n'
+    git fetch --tags
+fi
+
+
+# https://stackoverflow.com/questions/8044583/how-can-i-move-a-tag-on-a-git-branch-to-a-different-commit
+if [ "$option" == "replace" ]
+then
+    printf '\nReplacing existing tag...\n'
+    git tag --force --annotate "$tag_name" "$commit"
+
+    printf '\nPushing modification...\n'
+    git push --force origin "$tag_name"
+fi
