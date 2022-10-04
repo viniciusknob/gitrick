@@ -29,3 +29,25 @@ save = !git add -N . && git commit -am 'SAVEPOINT'
 aliases = !git config --list | grep 'alias'  
 upstream = rev-parse --abbrev-ref --symbolic-full-name @{u}  
 rerere-clear = !rm -rf .git/rr-cache  
+
+### Make Windows Terminal look amazing!
+https://www.youtube.com/watch?v=AK2JE2YsKto
+https://github.com/xcad2k/dotfiles/blob/main/.config/starship.toml
+
+* Install new fonts: https://www.nerdfonts.com/font-downloads
+Use right button of mouse on font and select "Install for all users".
+To remove a font, access Control Panel, Appearence, Fonts, choose a font and press delete.
+
+* Install chocolatey: https://chocolatey.org/install#individual
+* Install starship: https://community.chocolatey.org/packages/starship
+
+#### Ubuntu on Windows with WSL2 config
+Install on Ubuntu using Terminal:
+```
+curl -sS https://starship.rs/install.sh | sh
+```
+Create a symbolic link to starship.toml:
+```
+mkdir ~/.config
+ln -s /mnt/c/Users/<username>/.config/starship.toml ~/.config/starship.toml
+```
